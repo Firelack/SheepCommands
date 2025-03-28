@@ -1,0 +1,12 @@
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Actions moutons')
+    .addItem('Résumé des commandes en pdf','generatePDF')
+    .addItem('Moutons compatibles aux désirs (tout)','moutonstout')
+    .addItem('Vider les moutons compatibles', 'viderCompatibles')
+    .addItem('Vérifier les commandes non finalisées', 'verifyCommandes')
+    .addItem('Générer une fiche de transport', 'feuillederoute')
+    .addItem('Vider les tableaux (pas la blacklist)', 'clearSpecificRanges')
+    .addToUi();
+}
+

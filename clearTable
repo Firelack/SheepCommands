@@ -1,0 +1,59 @@
+function clearSpecificRanges() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Afficher une fenêtre de confirmation
+  const response = ui.alert('Confirmation', 'Voulez-vous vraiment vider les tableaux ?', ui.ButtonSet.YES_NO);
+  
+  // Vérifier la réponse de l'utilisateur
+  if (response == ui.Button.YES) {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+    // Définir les plages à vider et à réinitialiser la couleur de fond
+    const rangesToClear = [
+      { sheetName: 'Moutons', ranges: ['A2:A499', 'B2:B499', 'C2:C499', 'F2:F499','H9'] },
+      { sheetName: 'Commandes', ranges: ['B2:B100', 'C2:C100', 'F2:F100', 'G2:G100', 'J2:J100','K9','K13'] },
+      { sheetName: 'Désirs', ranges: ['A2:A100', 'B2:B100', 'C2:C100', 'D2:D100', 'E2:E100', 'G2:G100'] }
+    ];
+
+    // Vider le contenu des plages spécifiées
+    rangesToClear.forEach(item => {
+      const sheet = spreadsheet.getSheetByName(item.sheetName);
+      if (sheet) {
+        item.ranges.forEach(range => {
+          sheet.getRange(range).clearContent();
+        });
+      } else {
+        ui.alert(`La feuille "${item.sheetName}" n'existe pas.`);
+      }
+    });
+
+    // Réinitialiser la couleur de fond à blanc pour toutes les lignes de moutons et de commandes
+    const sheetsToResetColor = [
+      { sheetName: 'Moutons', range: '1:499' },
+      { sheetName: 'Commandes', range: '1:100' }
+    ];
+
+    sheetsToResetColor.forEach(item => {
+      const sheet = spreadsheet.getSheetByName(item.sheetName);
+      if (sheet) {
+        sheet.getRange(item.range).setBackground('white');
+      } else {
+        ui.alert(`La feuille "${item.sheetName}" n'existe pas.`);
+      }
+    });
+
+    ui.alert('Les tableaux ont été vidé.');
+  } else {
+    ui.alert('Action annulée.');
+  }
+}
+
+function viderCompatibles() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const desiresSheet = spreadsheet.getSheetByName('Désirs');
+
+  // Effacer les cellules de G2 à G100
+  desiresSheet.getRange('G2:G100').clearContent();
+}
+
+

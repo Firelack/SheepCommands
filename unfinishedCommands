@@ -1,0 +1,66 @@
+function verifyCommandes() {
+  const data = getData();
+  const commandesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Commandes');
+  const commandes = data.commandes;
+  const desires = data.desires;
+
+  let commandesIssues = [];
+
+  // Parcourir les commandes
+  for (let i = 1; i < commandes.length; i++) {
+
+    // La ligne dans la feuille de calcul correspond à i + 1 (car i commence à 0 dans la feuille, mais la première ligne est l'en-tête)
+    const firstCellRange = commandesSheet.getRange(i + 1, 1);  // Première cellule de la ligne i+1 (colonne A)
+    const firstCellBackgroundColor = firstCellRange.getBackground(); // Obtenir la couleur de fond de la première cellule
+    
+    // Si la première cellule est verte, vider la cellule J correspondante et passer à la commande suivante
+    if (firstCellBackgroundColor === '#008000' || firstCellBackgroundColor === 'rgb(0,128,0)') {
+      commandesSheet.getRange(i + 1, 10).setValue(''); // Vider la colonne J
+      continue; // Ne pas traiter cette commande, elle est déjà marquée comme vérifiée
+    }
+
+    const commande = commandes[i];
+    const numCommande = commande[0];
+    const nombreMoutonsCommande = commande[3];
+
+    // Calculer le nombre total de moutons désirés pour cette commande
+    let totalMoutonsDesires = 0;
+    for (let j = 1; j < desires.length; j++) {
+      const desir = desires[j];
+      const desirNumCommande = desir[0];
+      const nombreMoutonsDesir = desir[2];
+
+      if (desirNumCommande == numCommande) {
+        totalMoutonsDesires += nombreMoutonsDesir;
+      }
+    }
+
+    // Vérifier si le nombre de moutons de la commande correspond aux désirs
+    let difference = totalMoutonsDesires - nombreMoutonsCommande;
+
+    if (nombreMoutonsCommande != totalMoutonsDesires) {
+      let issue = '';
+      if (difference > 0) {
+        issue = `Pas assez de moutons (${difference} en manque)`;
+      } else {
+        difference = Math.abs(difference);
+        issue = `Trop de moutons (${difference} en trop)`;
+      }
+      commandesIssues.push(`Commande ${numCommande}: ${issue}`);
+
+      // Colorier la ligne de la commande en rouge (si problème)
+      const range = commandesSheet.getRange(i + 1, 1, 1, 8);  // Ligne i+1, colonnes A à H
+      range.setBackground('#FF0000'); // Met la ligne en rouge
+
+      // Écrire le problème dans la colonne J
+      commandesSheet.getRange(i + 1, 10).setValue(issue);
+    } else {
+      // Si la commande est correcte, remettre la ligne en blanc
+      const range = commandesSheet.getRange(i + 1, 1, 1, 8);  // Ligne i+1, colonnes A à H
+      range.setBackground('#FFFFFF'); // Remet la ligne en blanc
+
+      // Efface le problème en colonne J
+      commandesSheet.getRange(i + 1, 10).setValue('');
+    }
+  }
+}

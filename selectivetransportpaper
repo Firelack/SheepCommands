@@ -1,0 +1,100 @@
+function feuillederouteselective() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet(); // Utiliser la feuille active
+  const range = sheet.getActiveRange(); // Utiliser la plage active
+  const row = range.getRow(); // Récupérer le numéro de la ligne active
+  const sheetName = sheet.getName();
+  const column = range.getColumn();
+
+  // Assurer que la feuille est bien 'Commandes' et la colonne est la colonne 13 (M)
+  if (sheetName === 'Commandes' && column === 13) {
+
+    // Si la ligne est <= 1, c'est une ligne d'en-tête ou invalide
+    if (row <= 1) {
+      return;
+    }
+
+    // Obtenir le numéro de commande basé sur la ligne active
+    const commandNumber = sheet.getRange(row, 1).getValue(); // Obtenir le numéro de commande de la colonne A (1ère colonne)
+
+    // Accéder à la feuille des moutons
+    const sheepSheet = ss.getSheetByName('Moutons');
+    const sheepRange = sheepSheet.getRange(2, 1, sheepSheet.getLastRow() - 1, sheepSheet.getLastColumn());
+    const sheepValues = sheepRange.getValues();
+
+    // Obtenir les moutons donnés dans la colonne M
+    const moutonsDonnés = sheet.getRange(row, 13).getValue().split(/[.,\s]+/).map(Number).filter(Boolean); // Permet d'accepter les virgules, points et espaces
+    let moutonsLivrés = [];
+
+    moutonsDonnés.forEach(mouton => {
+      const sheepIndex = sheepValues.findIndex(row => row[0] == mouton && row[5] == commandNumber);
+      if (sheepIndex !== -1) {
+        // Surligner le mouton correspondant en vert dans la feuille 'Moutons'
+        sheepSheet.getRange(sheepIndex + 2, 1, 1, 6).setBackground('#008000'); // Colonnes A à F
+        moutonsLivrés.push(mouton);
+      }
+    });
+
+    if (moutonsLivrés.length === 0) {
+      SpreadsheetApp.getUi().alert(`Aucun des moutons sélectionnés n'est associé à la commande ${commandNumber}.`);
+      return;
+    }
+
+    // Vérifier si tous les moutons de la commande sont livrés (en vert)
+    const allSheepList = sheepValues.filter(row => row[5] == commandNumber); // Tous les moutons de la commande
+    const allDelivered = allSheepList.every(row => row.slice(0, 6).every(cell => sheepSheet.getRange(sheepValues.indexOf(row) + 2, 1, 1, 6).getBackground() === '#008000'));
+
+    if (allDelivered) {
+      // Si tous les moutons de la commande sont livrés, mettre la commande en vert
+      const commandRow = sheet.getRange(row, 1, 1, 8); // Colonnes A à H de la commande
+      commandRow.setBackground('#008000');
+    }
+
+    // Générer la fiche de transport avec les moutons donnés
+    const clientName = sheet.getRange(row, 2).getValue(); // Obtenir le nom du client (colonne B)
+    let sheepDetails = '';
+    let totalPrice = 0;
+
+    moutonsLivrés.forEach(mouton => {
+      const moutonData = sheepValues.find(row => row[0] == mouton);
+      const sheepNumber = moutonData[0];
+      const weight = moutonData[1];
+      const price = moutonData[4]; // Supposons que le prix est dans la 5ème colonne (indice 4)
+      sheepDetails += `  ${sheepNumber}                     ${weight}kg                    ${price}€\n              `;
+      totalPrice += parseFloat(price);
+    });
+
+    const dateTime = new Date();
+    const formattedDateTime = Utilities.formatDate(dateTime, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+
+    const templateId = '103lg35eWeSObzLxP9nvIcW6gdUQ29Lgef_dltBFWBew'; // Remplacez par l'ID de votre modèle Google Docs
+    const template = DriveApp.getFileById(templateId);
+    const copy = template.makeCopy();
+    const doc = DocumentApp.openById(copy.getId());
+    const body = doc.getBody();
+
+    body.replaceText('{{clientName}}', clientName);
+    body.replaceText('{{sheepDetails}}', sheepDetails);
+    body.replaceText('{{dateTime}}', formattedDateTime);
+    body.replaceText('{{prixtotal}}', 'Prix total : ' + totalPrice.toFixed(2) + ' €');
+
+    doc.saveAndClose();
+
+    // Générer le PDF
+    const pdfBlob = doc.getAs('application/pdf').setName('Fiche de transport.pdf');
+    const file = DriveApp.createFile(pdfBlob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    const downloadUrl = 'https://drive.google.com/uc?export=download&id=' + file.getId();
+    const linkText = file.getName();  // Le nom du fichier pour l'affichage
+
+    // Insérer le lien dans la cellule K13
+    sheet.getRange('K13').setFormula(`=HYPERLINK("${downloadUrl}"; "${linkText}")`);
+
+    // Supprimer le fichier PDF et le document Google Docs temporaire après avoir obtenu le lien
+    DriveApp.getFileById(file.getId()).setTrashed(true);
+    DriveApp.getFileById(copy.getId()).setTrashed(true);
+
+    // Vider la cellule M après traitement
+    sheet.getRange(row, 13).setValue('');
+  }
+}

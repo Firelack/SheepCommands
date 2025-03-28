@@ -1,0 +1,75 @@
+function getData() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const commandesSheet = spreadsheet.getSheetByName('Commandes');
+  const moutonsSheet = spreadsheet.getSheetByName('Moutons');
+  const desiresSheet = spreadsheet.getSheetByName('Désirs');
+
+  const commandes = commandesSheet.getDataRange().getValues();
+  const moutons = moutonsSheet.getDataRange().getValues();
+  const desires = desiresSheet.getDataRange().getValues();
+
+  return { commandes, moutons, desires };
+}
+
+function moutonstout() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const desiresSheet = spreadsheet.getSheetByName('Désirs');
+  const moutonsSheet = spreadsheet.getSheetByName('Moutons');
+
+  const desiresDataRange = desiresSheet.getDataRange();
+  const desiresValues = desiresDataRange.getValues();
+
+  const moutonsDataRange = moutonsSheet.getDataRange();
+  const moutonsValues = moutonsDataRange.getValues();
+
+  // Parcourir chaque ligne des désirs
+  for (let i = 1; i < desiresValues.length; i++) {
+    const desir = desiresValues[i];
+
+    const numCommande = desir[0];
+    const typeMoutons = desir[1];
+    const nombreMoutons = desir[2];
+    const poidsMin = desir[3];
+    const poidsMax = desir[4];
+
+    // Vérifier si la ligne est remplie avec des critères valides
+    if (numCommande && typeMoutons && nombreMoutons) {
+      let moutonsNonAttribues = [];
+
+      // Parcourir les moutons pour trouver les moutons correspondants
+      for (let j = 1; j < moutonsValues.length; j++) {
+        const mouton = moutonsValues[j];
+        const moutonNumCommande = mouton[5]; // Colonne du numéro de commande dans la feuille des moutons
+        const moutonType = mouton[2]; // Colonne du type de moutons dans la feuille des moutons
+        const moutonPoids = mouton[1];
+
+        // Vérifier si le mouton n'est pas encore attribué et correspond aux critères
+        let moutonCorrespondant = moutonNumCommande === '' && moutonType === typeMoutons;
+
+        // Vérifier les critères de poids seulement si poidsMin ou poidsMax existent
+        if (poidsMin && poidsMax) {
+          moutonCorrespondant = moutonCorrespondant && moutonPoids >= poidsMin && moutonPoids <= poidsMax;
+        } else if (poidsMin) {
+          moutonCorrespondant = moutonCorrespondant && moutonPoids >= poidsMin;
+        } else if (poidsMax) {
+          moutonCorrespondant = moutonCorrespondant && moutonPoids <= poidsMax;
+        }
+
+        // Si le mouton correspond, l'ajouter à la liste des moutons non attribués
+        if (moutonCorrespondant) {
+          moutonsNonAttribues.push(mouton[0]); // Ajouter uniquement le numéro du mouton
+        }
+      }
+
+      // Écrire les moutons compatibles dans la colonne G (colonne 6 = F, donc 7 = G)
+      if (moutonsNonAttribues.length > 0) {
+        desiresSheet.getRange(i + 1, 7).setValue('Numéro : ' + moutonsNonAttribues.join(', ')); // Écrire les numéros de moutons compatibles séparés par des virgules
+      } else {
+        desiresSheet.getRange(i + 1, 7).setValue('Aucun mouton compatible');
+      }
+    }
+  }
+
+  // Alerte à la fin du traitement
+  SpreadsheetApp.getUi().alert('Recherche des moutons compatibles terminée.');
+}

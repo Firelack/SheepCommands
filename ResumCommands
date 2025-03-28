@@ -1,0 +1,121 @@
+function formatData() {
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const commandesSheet = spreadsheet.getSheetByName('Commandes');
+  const moutonsSheet = spreadsheet.getSheetByName('Moutons');
+
+  const commandes = commandesSheet.getDataRange().getValues();
+  const moutons = moutonsSheet.getDataRange().getValues();
+
+  let htmlContent = '<html><body>';
+  
+  // Titre
+  htmlContent += '<h3>Liste des Commandes et Moutons</h3>';
+
+  // Boucle à travers les commandes
+  for (let i = 1; i < commandes.length; i++) {
+    const commande = commandes[i];
+    const numCommande = commande[0];
+    const nombreMoutons = commande[3];
+
+    // Vérifier si le nombre de moutons est supérieur à zéro
+    if (nombreMoutons > 0) {
+      htmlContent += '<div style="margin-bottom: 20px;">';
+      htmlContent += '<h4 style="margin: 0;">Commande ' + numCommande + '</h4>';
+      htmlContent += '<p style="margin: 0;">Nom du client: ' + commande[1] + ', ';
+      htmlContent += 'Numéro de téléphone: ' + commande[2] + ', ';
+      htmlContent += 'Prix total: ' + commande[4] + ', ';
+      htmlContent += 'Accompte: ' + commande[5] + ' ' + commande[6] + ', ';
+      htmlContent += 'Total à payer: ' + commande[7] + ', ';
+      htmlContent += '<h4 style="margin: 0;">Moutons associés</h4>';
+
+      // Boucle à travers les moutons pour trouver ceux associés à cette commande
+      htmlContent += '<ul style="margin: 0; padding-left: 20px;">';
+      for (let j = 1; j < moutons.length; j++) {
+        const mouton = moutons[j];
+        if (mouton[5] == numCommande) {
+          htmlContent += '<li style="margin: 0;">';
+          htmlContent += 'Numéro de mouton: ' + mouton[0] + ', ';
+          htmlContent += 'Poids: ' + mouton[1] + ', ';
+          htmlContent += 'Type: ' + mouton[2] + ', ';
+          htmlContent += 'Prix: ' + mouton[4];
+          htmlContent += '</li>';
+        }
+      }
+      htmlContent += '</ul>';
+      htmlContent += '</div>';
+    }
+  }
+
+  htmlContent += '</body></html>';
+
+  return htmlContent;
+}
+function generatePDF() {
+  const htmlContent = formatData();
+
+  const blob = Utilities.newBlob(htmlContent, 'text/html', 'Commandes_Moutons.html');
+  const pdf = blob.getAs('application/pdf').setName('Commandes_Moutons.pdf');
+
+  // Créer le fichier PDF sur Google Drive et obtenir son URL de téléchargement direct
+  const file = DriveApp.createFile(pdf);
+  const downloadUrl = 'https://drive.google.com/uc?export=download&id=' + file.getId();
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const linkText = file.getName();  // Le nom du fichier pour l'affichage
+
+
+// Affiche le lien de téléchargement dans la cellule K9 de la feuille si elle est "Moutons" ou "Commandes"
+const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+const sheetName = sheet.getName();
+
+  if (sheetName === 'Moutons') {
+    sheet.getRange('H9').setFormula(`=HYPERLINK("${downloadUrl}"; "${linkText}")`);
+  } else if (sheetName === 'Commandes') {
+    sheet.getRange('K9').setFormula(`=HYPERLINK("${downloadUrl}"; "${linkText}")`);
+  }
+
+  // Supprimer le fichier PDF de Google Drive après avoir obtenu le lien de téléchargement
+  DriveApp.getFileById(file.getId()).setTrashed(true);
+}
+
+
+function commandesmanuelles() {
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const activeCell = sheet.getActiveCell();
+  const sheetName = sheet.getName();
+  const cellAddress = activeCell.getA1Notation(); // Adresse de la cellule (par exemple "B2")
+
+if ((cellAddress === 'H8' && sheetName === 'Moutons') || (cellAddress === 'K8' && sheetName === 'Commandes')) {
+  
+  const htmlContent = formatData();
+
+  const blob = Utilities.newBlob(htmlContent, 'text/html', 'Commandes_Moutons.html');
+  const pdf = blob.getAs('application/pdf').setName('Commandes_Moutons.pdf');
+
+  // Créer le fichier PDF sur Google Drive et obtenir son URL de téléchargement direct
+  const file = DriveApp.createFile(pdf);
+  const downloadUrl = 'https://drive.google.com/uc?export=download&id=' + file.getId();
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const linkText = file.getName();  // Le nom du fichier pour l'affichage
+
+
+
+// Affiche le lien de téléchargement dans la cellule K9 de la feuille si elle est "Moutons" ou "Commandes"
+  if (sheetName === 'Moutons') {
+    sheet.getRange('H9').setFormula(`=HYPERLINK("${downloadUrl}"; "${linkText}")`);
+  } else if (sheetName === 'Commandes') {
+    sheet.getRange('K9').setFormula(`=HYPERLINK("${downloadUrl}"; "${linkText}")`);
+  }
+
+  // Supprimer le fichier PDF de Google Drive après avoir obtenu le lien de téléchargement
+  DriveApp.getFileById(file.getId()).setTrashed(true);
+  if (sheetName === 'Moutons') {
+      sheet.getRange('H8').setValue(false);
+    }
+    if (sheetName === 'Commandes') {
+      sheet.getRange('K8').setValue(false);
+    }
+}
+}
+

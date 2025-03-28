@@ -1,0 +1,206 @@
+function feuillederoute() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Commandes');
+  const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn());
+  const values = range.getValues();
+
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt('Entrez le numéro de commande :');
+
+  if (response.getSelectedButton() == ui.Button.OK) {
+    const commandNumber = response.getResponseText();
+    const commandData = values.find(row => row[0] == commandNumber);
+
+    if (commandData) {
+      const commandRow = values.findIndex(row => row[0] == commandNumber) + 2;  // Ajouter 2 pour la ligne d'en-tête et l'index 0 basé sur 1
+      const clientName = commandData[1];
+
+      const sheepSheet = ss.getSheetByName('Moutons');
+      const sheepRange = sheepSheet.getRange(2, 1, sheepSheet.getLastRow() - 1, sheepSheet.getLastColumn());
+      const sheepValues = sheepRange.getValues();
+      const sheepList = sheepValues.filter(row => row[5] == commandNumber);
+
+      let sheepDetails = '';
+      let reforms = 0;
+      let males = 0;
+      let females = 0;
+      let totalPrice = 0;
+
+      sheepList.forEach((sheep, index) => {
+        const sheepNumber = sheep[0];
+        const weight = sheep[1];
+        const type = sheep[2].toLowerCase(); // Conversion en minuscule pour comparaison
+        const price = sheep[4]; // Supposons que le prix est dans la 5ème colonne (indice 4)
+        sheepDetails += `  ${sheepNumber}                     ${weight}kg                    ${price}€\n              `;
+        totalPrice += parseFloat(price);
+
+        if (type.includes('réforme')) {
+          reforms++;
+        }
+
+        if (type.includes('male')) {
+          males++;
+        } else if (type.includes('femelle')) {
+          females++;
+        }
+
+        // Surligner la ligne du mouton correspondant
+        const sheepRow = sheepValues.findIndex(row => row[0] === sheepNumber) + 2; // Ajuster pour la ligne d'en-tête
+        sheepSheet.getRange(sheepRow, 1, 1, 6).setBackground('#008000'); // Colonnes A à F
+      });
+
+      const moutons = males + females;
+
+      const dateTime = new Date();
+      const formattedDateTime = Utilities.formatDate(dateTime, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+
+      const templateId = '103lg35eWeSObzLxP9nvIcW6gdUQ29Lgef_dltBFWBew'; // Remplacez par l'ID de votre modèle Google Docs
+      const template = DriveApp.getFileById(templateId);
+      const copy = template.makeCopy();
+      const doc = DocumentApp.openById(copy.getId());
+      const body = doc.getBody();
+
+      body.replaceText('{{clientName}}', clientName);
+      body.replaceText('{{sheepDetails}}', sheepDetails);
+      body.replaceText('{{reforms}}', reforms.toString());
+      body.replaceText('{{moutons}}', moutons.toString());
+      body.replaceText('{{dateTime}}', formattedDateTime);
+      body.replaceText('{{prixtotal}}', 'Prix total : ' + totalPrice.toFixed(2) + ' €'); // Ajouter le prix total
+
+      doc.saveAndClose();
+
+      // Générer le PDF
+      const pdfBlob = doc.getAs('application/pdf').setName('Fiche de transport.pdf');
+      const file = DriveApp.createFile(pdfBlob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      const downloadUrl = 'https://drive.google.com/uc?export=download&id=' + file.getId();
+
+      // Afficher le lien de téléchargement dans une boîte de dialogue
+      const html = '<html><body><a href="' + downloadUrl + '" target="_blank">Cliquez ici pour télécharger le PDF</a></body></html>';
+      const htmlOutput = HtmlService.createHtmlOutput(html);
+      ui.showModalDialog(htmlOutput, 'Télécharger le PDF');
+
+      // Supprimer le fichier PDF et le document Google Docs temporaire de Google Drive après avoir obtenu le lien de téléchargement
+      DriveApp.getFileById(file.getId()).setTrashed(true);
+      DriveApp.getFileById(copy.getId()).setTrashed(true);
+
+      // Surligner la ligne de la commande correspondante
+      sheet.getRange(commandRow, 1, 1, 8).setBackground('green'); // Colonnes A à H
+    } else {
+      ui.alert(`Commande numéro ${commandNumber} non trouvée.`);
+    }
+  }
+}
+
+
+
+function feuillederoutemanuelle() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet(); // Utiliser la feuille active
+  const range = sheet.getActiveRange(); // Utiliser la plage active
+  const row = range.getRow(); // Récupérer le numéro de la ligne active
+  const sheetName = sheet.getName();
+  const column = range.getColumn();
+
+  // Assurer que la feuille est bien 'Commandes' et la colonne est la colonne 9 (I)
+  if (sheetName === 'Commandes' && column === 9) {
+
+
+    // Si la ligne est <= 1, c'est une ligne d'en-tête ou invalide
+    if (row <= 1) {
+      SpreadsheetApp.getUi().alert('La ligne active n\'est pas valide pour traiter une commande.');
+      return;
+    }
+
+    // Obtenir le numéro de commande basé sur la ligne active
+    const commandNumber = sheet.getRange(row, 1).getValue(); // Obtenir le numéro de commande de la colonne A (1ère colonne)
+
+    // Accéder à la feuille des commandes
+    const rangeCommandes = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn());
+    const valuesCommandes = rangeCommandes.getValues();
+
+    // Trouver les données de la commande
+    const commandData = valuesCommandes.find(rowData => rowData[0] == commandNumber);
+
+    if (commandData) {
+      const commandRow = valuesCommandes.findIndex(rowData => rowData[0] == commandNumber) + 2;  // Ajuster pour l'index de la ligne
+      const clientName = commandData[1];
+
+      // Accéder à la feuille des moutons
+      const sheepSheet = ss.getSheetByName('Moutons');
+      const sheepRange = sheepSheet.getRange(2, 1, sheepSheet.getLastRow() - 1, sheepSheet.getLastColumn());
+      const sheepValues = sheepRange.getValues();
+      const sheepList = sheepValues.filter(row => row[5] == commandNumber);
+
+      let sheepDetails = '';
+      let reforms = 0;
+      let males = 0;
+      let females = 0;
+      let totalPrice = 0;
+
+      sheepList.forEach(sheep => {
+        const sheepNumber = sheep[0];
+        const weight = sheep[1];
+        const type = sheep[2].toLowerCase(); // Conversion en minuscule pour comparaison
+        const price = sheep[4]; // Supposons que le prix est dans la 5ème colonne (indice 4)
+        sheepDetails += `  ${sheepNumber}                     ${weight}kg                    ${price}€\n              `;
+        totalPrice += parseFloat(price);
+
+        if (type.includes('réforme')) {
+          reforms++;
+        }
+
+        if (type.includes('male')) {
+          males++;
+        } else if (type.includes('femelle')) {
+          females++;
+        }
+
+        // Surligner la ligne du mouton correspondant
+        const sheepRow = sheepValues.findIndex(row => row[0] === sheepNumber) + 2; // Ajuster pour la ligne d'en-tête
+        sheepSheet.getRange(sheepRow, 1, 1, 6).setBackground('#008000'); // Colonnes A à F
+      });
+
+      const moutons = males + females;
+
+      const dateTime = new Date();
+      const formattedDateTime = Utilities.formatDate(dateTime, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+
+      const templateId = '103lg35eWeSObzLxP9nvIcW6gdUQ29Lgef_dltBFWBew'; // Remplacez par l'ID de votre modèle Google Docs
+      const template = DriveApp.getFileById(templateId);
+      const copy = template.makeCopy();
+      const doc = DocumentApp.openById(copy.getId());
+      const body = doc.getBody();
+
+      body.replaceText('{{clientName}}', clientName);
+      body.replaceText('{{sheepDetails}}', sheepDetails);
+      body.replaceText('{{reforms}}', reforms.toString());
+      body.replaceText('{{moutons}}', moutons.toString());
+      body.replaceText('{{dateTime}}', formattedDateTime);
+      body.replaceText('{{prixtotal}}', 'Prix total : ' + totalPrice.toFixed(2) + ' €'); // Ajouter le prix total
+
+      doc.saveAndClose();
+
+      // Générer le PDF
+      const pdfBlob = doc.getAs('application/pdf').setName('Fiche de transport.pdf');
+      const file = DriveApp.createFile(pdfBlob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      const downloadUrl = 'https://drive.google.com/uc?export=download&id=' + file.getId();
+      const linkText = file.getName();  // Le nom du fichier pour l'affichage
+
+
+      sheet.getRange('K13').setFormula(`=HYPERLINK("${downloadUrl}"; "${linkText}")`);
+
+      // Supprimer le fichier PDF et le document Google Docs temporaire de Google Drive après avoir obtenu le lien de téléchargement
+      DriveApp.getFileById(file.getId()).setTrashed(true);
+      DriveApp.getFileById(copy.getId()).setTrashed(true);
+
+      // Surligner la ligne de la commande correspondante
+      sheet.getRange(commandRow, 1, 1, 8).setBackground('green'); // Colonnes A à H
+    } else {
+      SpreadsheetApp.getUi().alert(`Commande numéro ${commandNumber} non trouvée.`);
+    }
+        // Décocher la case en K (colonne 9)
+    sheet.getRange(row, 9).setValue(false);
+  }
+}
